@@ -26,7 +26,7 @@ class BotState(enum.Enum):
 currentBotState = BotState.LOOK_TOWARDS
 yaw = 0
 yaw_threshold = math.pi / 90
-goal_distance_threshold = 0.25
+goal_distance_threshold = 0.5
 
 # base scan laser range values
 maxRange = 3
@@ -123,12 +123,17 @@ class Histogram:
                 end_index = (360 / self.bin_size) * (bin_index + 1) + 1
 
             self.histogram[bin_index] = reduce(lambda count, i: count + (i < 1), sensor_data[start_index:end_index], 0)
-            if self.histogram[bin_index] < 6:  # Filter threshold
+            filter_threshold = 4
+            if self.histogram[bin_index] < filter_threshold:  # Filter threshold
                 # TODO: Check is bot will fit into the opening or not ?
+                if bin_index-2 > 0 and bin_index+2 < self.bin_size:
+                    if self.histogram[bin_index+1] > filter_threshold and self.histogram[bin_index+2] > filter_threshold:
+                        continue
                 openings.append(bin_index)
         #     print(start_index, end_index)
         #     print(sensor_data[start_index:end_index])
         print(self.histogram)
+        print(openings)
         # print(openings)
         # print(len(openings))
         # compute g cost for every openings
@@ -178,11 +183,11 @@ class Histogram:
             # print(candidate_index, g_cost, cost, candidate_dir, target_dir, current_dir, previous_dir, goal_dir, lowest_cost_bin)
             # print(candidate_index, g_cost, cost, candidate_dir, target_dir, goal_dir, current_dir, lowest_cost_bin)
         #
-        print(lowest_cost_bin, lowest_cost_bin_index)
+        print(lowest_cost_bin, lowest_cost_bin_index, (lowest_cost_bin * 57.2958))
         return lowest_cost_bin  #* 0.0174533
 
 
-histogram = Histogram(10)
+histogram = Histogram(24)
 
 
 def translation(map_to_simulation, row, column):
@@ -338,28 +343,6 @@ def normalize(angle):
     return angle
 
 
-def look_towards(des_pos, step_goal_pos):
-    global yaw, yaw_threshold, bot_motion, twist, currentBotState
-    quaternion = (
-        des_pos.orientation.x,
-        des_pos.orientation.y,
-        des_pos.orientation.z,
-        des_pos.orientation.w)
-    euler = euler_from_quaternion(quaternion)
-    yaw = euler[2]  # bot's yaw
-    beacon_yaw = math.atan2(step_goal_pos[1] - des_pos.position.y, step_goal_pos[0] - des_pos.position.x)
-    print(yaw, beacon_yaw)
-    yaw_diff = normalize(beacon_yaw - yaw)
-
-    if math.fabs(yaw_diff) > yaw_threshold:
-        twist.angular.z = -0.5  # if yaw_diff > 0 else 0.5  # counter-clockwise rotation
-
-    if math.fabs(yaw_diff) <= yaw_threshold:
-        twist.angular.z = 0
-        currentBotState = BotState.GOAL_SEEK
-    bot_motion.publish(twist)
-
-
 def get_base_truth(bot_data):
     global bot_pose, beacon_found, goal_distance_threshold, step_path_index, step_path, bot_ready, currentBotState, yaw
     bot_pose = bot_data.pose.pose
@@ -393,24 +376,24 @@ def process_sensor_info(data):
         if bot_ready:
             # if not once:
             chosen_path = histogram.build_histogram(data.ranges, bot_pose.position, yaw, step_path, step_path_index)
-            histogram.previous_selected = chosen_path  # * 57.2958
-            yaw_diff = normalize(chosen_path - yaw)
-            print(step_path[step_path_index], step_path_index)
-            print(chosen_path, yaw, yaw_diff, yaw_threshold)
-            if math.fabs(yaw_diff) > yaw_threshold:
-                twist.linear.x = 0
-                twist.angular.z = -0.5 if yaw_diff < 0 else 0.5  # counter-clockwise rotation
-            else:
-                twist.angular.z = 0
-                twist.linear.x = 0.5
-            # bot_motion.publish(twist)
-            # once = True
+            if chosen_path is not None:
+                histogram.previous_selected = chosen_path  # * 57.2958
+                yaw_diff = normalize(chosen_path - yaw)
+                print(step_path[step_path_index], step_path_index)
+                print(chosen_path, yaw, yaw_diff, yaw_threshold)
+                if math.fabs(yaw_diff) > yaw_threshold:
+                    twist.linear.x = 0
+                    twist.angular.z = -0.5 if yaw_diff < 0 else 0.5  # counter-clockwise rotation
+                else:
+                    twist.angular.z = 0
+                    twist.linear.x = 0.5
+                # bot_motion.publish(twist)
+                # once = True
     else:
         twist.angular.z = 0
         twist.linear.x = 0
         print(" ------------------------------------------------------------------------------------------------> Reached Goal")
     bot_motion.publish(twist)
-
 
 
 def init():
