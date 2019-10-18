@@ -6,7 +6,6 @@
   <param name="goalx" type="double" value="$(arg goalx)"/>
   <param name="goaly" type="double" value="$(arg goaly)"/>
   <node type="stageros" name="stage_sim" pkg="stage_ros" args="-d $(find ros_pa2)/world/playground.world" />
-<!--  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find ros_pa2)/include/config/config.rviz" />-->
-<!--  <node type="homing_beacon.py" name="homing_beacon" pkg="ros_pa2"/>-->
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find ros_pa2)/include/config/config.rviz" />
   <node type="bot.py" name="getHomeLocation" pkg="ros_pa2" output="screen"/>
 </launch>
