@@ -73,7 +73,7 @@ class Node:
 class Histogram:
     def __init__(self, bin_width):
         self.bin_width = bin_width
-        self.bin_size = 360 / bin_width
+        self.bin_size = int(360 / bin_width)
         self.histogram = [0] * self.bin_size
         self.previous_selected = None
         self.a = 2
@@ -98,8 +98,8 @@ class Histogram:
                 start_index = 0
                 end_index = self.bin_width
             else:
-                start_index = (360 / self.bin_size) * bin_index + 1
-                end_index = (360 / self.bin_size) * (bin_index + 1) + 1
+                start_index = int(360 / self.bin_size) * bin_index + 1
+                end_index = int(360 / self.bin_size) * (bin_index + 1) + 1
 
             self.histogram[bin_index] = reduce(lambda count, i: count + (i < 1), sensor_data[start_index:end_index], 0)
             filter_threshold = 4
